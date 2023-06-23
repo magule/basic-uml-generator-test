@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Simple UML Diagram Creator</title>
+  <style>
+    .container {
+      display: flex;
+    }
+
+    .sidebar {
+      width: 200px;
+      background-color: #f2f2f2;
+      padding: 10px;
+    }
+
+    .component {
+      background-color: #ccc;
+      margin-bottom: 10px;
+      padding: 5px;
+      cursor: pointer;
+    }
+
+    .canvas {
+      flex-grow: 1;
+      padding: 10px;
+    }
+
+    #diagram {
+      width: 100%;
+      height: 600px;
+      border: 1px solid #ccc;
+      position: relative;
+    }
+
+    .component-draggable {
+      position: absolute;
+      cursor: move;
+    }
+
+    .component-name {
+      display: none;
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      background-color: white;
+      padding: 3px;
+      border: 1px solid #ccc;
+      z-index: 1;
+      font-size: 12px;
+      width: 50px;
+    }
+
+    .component-name input {
+      width: 100%;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <h2>Components</h2>
+      <div class="component" id="square" draggable="true">Square</div>
+      <div class="component" id="rectangle" draggable="true">Rectangle</div>
+      <div class="component" id="arrow" draggable="true">Arrow</div>
+      <hr>
+
+      <p>Simply drag and drop components to the canvas.</p>
+      <hr>
+      <p>Double click to name them.</p>
+      <hr>
+      <p>You can rotate the arrow by double clicking on it.</p>
+    </div>
+    <div class="canvas" id="canvas">
+      <h2>Canvas</h2>
+      <div id="diagram"></div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // event listener for when the document has finished loading
+  
+      // retrieve references to draggable elements and the diagram
+      const square = document.getElementById("square");
+      const rectangle = document.getElementById("rectangle");
+      const arrow = document.getElementById("arrow");
+      const diagram = document.getElementById("diagram");
+  
+      // add event listeners for drag start on draggable elements
+      square.addEventListener("dragstart", dragStart);
+      rectangle.addEventListener("dragstart", dragStart);
+      arrow.addEventListener("dragstart", dragStart);
+  
+      // add event listeners for drag and drop functionality on the diagram
+      diagram.addEventListener("dragover", dragOver);
+      diagram.addEventListener("drop", drop);
+  
+      // add event listeners for mouse interaction on the diagram
+      diagram.addEventListener("mousedown", startDrag);
+      diagram.addEventListener("mousemove", drag);
+      diagram.addEventListener("mouseup", endDrag);
+  
+      // variables for tracking the selected component, offset, and dragging state
+      let selectedComponent = null;
+      let offset = { x: 0, y: 0 };
+      let isDragging = false;
+  
+      // function called when drag starts on a draggable element
+      function dragStart(event) {
+        //set the data to be transferred during the drag operation
+        if (event.target.id === "arrow") {
+          event.dataTransfer.setData("text/plain", "arrow");
+        } else {
+          event.dataTransfer.setData("text/plain", event.target.id);
+        }
+      }
+  
+      // function called when a dragged item is dragged over the diagram
+      function dragOver(event) {
+        // prevent the default behavior to allow dropping on the diagram
+        event.preventDefault();
+      }
+  
+      // function called when a dragged item is dropped on the diagram
+      function drop(event) {
+        // prevent the default behavior and create a new component based on the dropped item
+        event.preventDefault();
+        const componentType = event.dataTransfer.getData("text/plain");
+        const component = createComponent(componentType, event.clientX, event.clientY);
+        diagram.appendChild(component);
+      }
+  
+      // function called when the mouse button is pressed down on the diagram
+      function startDrag(event) {
+        // check if the target element is draggable
+        if (event.target.classList.contains("component-draggable")) {
+          // set the selected component, calculate the offset, and indicate dragging state
+          selectedComponent = event.target;
+          isDragging = true;
+          offset = {
+            x: event.clientX - selectedComponent.offsetLeft,
+            y: event.clientY - selectedComponent.offsetTop
+          };
+        }
+      }
+  
+      // function called when the mouse is moved over the diagram during dragging
+      function drag(event) {
+        // move the selected component based on the mouse position and offset
+        if (isDragging) {
+          const x = event.clientX - offset.x;
+          const y = event.clientY - offset.y;
+          selectedComponent.style.left = `${x}px`;
+          selectedComponent.style.top = `${y}px`;
+        }
+      }
+  
+      // function called when the mouse button is released after dragging
+      function endDrag() {
+        // reset the selected component and dragging state
+        selectedComponent = null;
+        isDragging = false;
+      }
+  
+      // function called when a component is double-clicked to show the name input field
+      function showNameInput(event) {
+        // check if the target element is draggable
+        if (event.target.classList.contains("component-draggable")) {
+          // show the name input field and set focus on it
+          const component = event.target;
+          const nameInput = component.querySelector(".component-name");
+          nameInput.style.display = "block";
+          nameInput.focus();
+        }
+      }
+  
+      // function called when the name input field loses focus to update the component name
+      function updateComponentName(event) {
+        const nameInput = event.target;
+        const component = nameInput.parentElement;
+        const componentName = component.querySelector(".component-text");
+        componentName.textContent = nameInput.value;
+        nameInput.style.display = "none";
+      }
+  
+      // function called when a component is double-clicked to rotate the arrow component
+      function rotateArrow(event) {
+        // check if the target element is draggable
+        if (event.target.classList.contains("component-draggable")) {
+          // rotate the arrow component by 45 degrees and update the rotation, attribute on every double click
+          const component = event.target;
+          const arrowRotation = component.getAttribute("data-rotation") || 0;
+          const newRotation = (parseInt(arrowRotation) + 45) % 360;
+          component.style.transform = `rotate(${newRotation}deg)`;
+          component.setAttribute("data-rotation", newRotation);
+        }
+      }
+  
+      // function to create a new component based on its type and client coordinates
+      function createComponent(type, clientX, clientY) {
+        // create a new component element
+        const component = document.createElement("div");
+        component.className = "component-draggable";
+        component.style.left = `${clientX - diagram.offsetLeft}px`;
+        component.style.top = `${clientY - diagram.offsetTop}px`;
+  
+        // create the component name element and associated name input field
+        const componentName = document.createElement("div");
+        componentName.className = "component-text";
+        component.appendChild(componentName);
+  
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.className = "component-name";
+        nameInput.addEventListener("blur", updateComponentName);
+        componentName.appendChild(nameInput);
+  
+        // set the appearance and behavior based on the component type
+        if (type === "square") {
+          component.style.width = "100px";
+          component.style.height = "100px";
+          component.style.backgroundColor = "red";
+        } else if (type === "rectangle") {
+          component.style.width = "150px";
+          component.style.height = "100px";
+          component.style.backgroundColor = "blue";
+          component.style.borderRadius = "5%";
+        } else if (type === "arrow") {
+          component.style.width = "150px";
+          component.style.height = "3px";
+          component.style.backgroundColor = "green";
+          component.style.borderRadius = "5%";
+          component.addEventListener("dblclick", rotateArrow);
+        }
+  
+        // add a double-click event listener to show the name input field
+        component.addEventListener("dblclick", showNameInput);
+  
+        // return the created component
+        return component;
+      }
+    });
+  </script>
+  
+</body>
+</html>
